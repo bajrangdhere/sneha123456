@@ -1,0 +1,1286 @@
+ Question1:
+
+P16AS01  DFHMSD TYPE=&SYSPARM,                                         C
+               CTRL=(FREEKB),                                          C
+               LANG=COBOL,                                             C
+               MODE=INOUT,                                             C
+               STORAGE=AUTO,                                           C
+               TIOAPFX=YES
+CALMAP   DFHMDI COLUMN=0001,                                           C
+               LINE=0001,                                              C
+               SIZE=(24,80)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='CALCULATOR PROGRAM',                           C
+               LENGTH=20,                                              C
+               POS=(1,12)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='USING 2 INPUTS    ',                           C
+               LENGTH=20,                                              C
+               POS=(1,33)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='INPUT 1',                                      C
+               LENGTH=7,                                               C
+               POS=(3,12)
+INPUT1   DFHMDF ATTRB=(UNPROT,NUM,IC),                                 C
+               INITIAL='00',                                           C
+               LENGTH=2,                                               C
+               POS=(3,22)
+         DFHMDF ATTRB=ASKIP,                                           C
+               LENGTH=1,                                               C
+               POS=(3,25)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='INPUT 2',                                      C
+               LENGTH=7,                                               C
+               POS=(5,12)
+INPUT2   DFHMDF ATTRB=(UNPROT,NUM),                                    C
+               INITIAL='00',                                           C
+               LENGTH=2,                                               C
+               POS=(5,22)
+         DFHMDF ATTRB=ASKIP,                                           C
+               LENGTH=1,                                               C
+               POS=(5,25)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='OUTPUT',                                       C
+               LENGTH=7,                                               C
+               POS=(7,12)
+OUTPUT   DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='000',                                          C
+               LENGTH=3,                                               C
+               POS=(7,23)
+MESSAGE  DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='                                               C
+                  ',                                                   C
+               LENGTH=50,                                              C
+               POS=(23,2)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='ENTER = PROCESS; PF3 = EXIT',                  C
+               LENGTH=27,                                              C
+               POS=(24,1)
+DUMMY    DFHMDF ATTRB=(PROT,DRK,FSET),                                 C
+               INITIAL=' ',                                            C
+               LENGTH=1,                                               C
+               POS=(24,79)
+         DFHMSD TYPE=FINAL
+         END
+
+
+      source code:
+
+000100 IDENTIFICATION DIVISION.                                         00010004
+000200 PROGRAM-ID. P16AP01.                                             00020004
+000300 DATA DIVISION.                                                   00030004
+000400 WORKING-STORAGE SECTION.                                         00040004
+000500 01  WS-CA       PIC X(01).                                       00050004
+000600 01  WS-IN1      PIC 9(02).                                       00060004
+000700 01  WS-IN1O REDEFINES WS-IN1 PIC X(02).                          00070004
+000800 01  WS-IN2      PIC 9(02).                                       00080004
+000900 01  WS-IN2O REDEFINES WS-IN2 PIC X(02).                          00090004
+001000 01  WS-OUT      PIC 9(03).                                       00100004
+001100 01  WS-MESSAGE  PIC X(30) VALUE                                  00110004
+001200     'END OF THE PROGRAM, BYE, BYE!!'.                            00120004
+001300     COPY P16AS01.                                                00130004
+001400     COPY DFHAID.                                                 00140004
+001500 LINKAGE SECTION.                                                 00150004
+001600 01  DFHCOMMAREA     PIC X(01).                                   00160004
+001700 PROCEDURE DIVISION.                                              00170004
+001800 MAIN-PARA.                                                       00180004
+001900     IF EIBCALEN = ZERO                                           00190004
+002000         PERFORM FIRST-PARA                                       00200004
+002100     ELSE                                                         00210004
+002200         PERFORM NEXT-PARA.                                       00220004
+002300 END-PARA.                                                        00230004
+002400     EXEC CICS RETURN                                             00240004
+002500         TRANSID('P16A')                                          00250004
+002600         COMMAREA(WS-CA)                                          00260004
+002700     END-EXEC.                                                    00270004
+002800 FIRST-PARA.                                                      00280004
+002900     MOVE LOW-VALUES TO CALMAPO                                   00290004
+003000     PERFORM SEND-MAP.                                            00300004
+003100 SEND-MAP.                                                        00310004
+003200     EXEC CICS SEND                                               00320004
+003300         MAP('CALMAP')                                            00330004
+003400         MAPSET('P16AS01')                                        00340004
+003500         FROM (CALMAPO)                                           00350004
+003600         ERASE                                                    00360004
+003700     END-EXEC.                                                    00370004
+003800 NEXT-PARA.                                                       00380004
+003900     IF EIBAID = DFHPF3                                           00390004
+004000         EXEC CICS SEND TEXT                                      00400004
+004100             FROM(WS-MESSAGE)                                     00410004
+004200             ERASE                                                00420004
+004300         END-EXEC                                                 00430004
+004400         EXEC CICS RETURN                                         00440004
+004500         END-EXEC                                                 00450004
+004600     ELSE                                                         00460004
+004700     IF EIBAID = DFHENTER                                         00470004
+004800         PERFORM PROCESS-PARA                                     00480004
+004900     ELSE                                                         00490004
+005000         MOVE 'INVALID KEY PRESSED' TO MESSAGEO.                  00500004
+005100       PERFORM SEND-MAP.                                          00510005
+005200 PROCESS-PARA.                                                    00520004
+005300     PERFORM RECEIVE-MAP.                                         00530004
+005400     IF INPUT1L = ZERO OR INPUT2L = ZERO                          00540004
+005500         MOVE 'PLEASE ENTER VALID INPUTS' TO MESSAGEO             00550004
+005600     ELSE                                                         00560004
+005700        IF INPUT1I IS NUMERIC AND INPUT2I IS NUMERIC              00570004
+005800             MOVE INPUT1I TO WS-IN1O                              00580004
+005900             MOVE INPUT2I TO WS-IN2O                              00590004
+006000             COMPUTE WS-OUT = WS-IN1 + WS-IN2                     00600004
+006100             MOVE WS-OUT  TO OUTPUTO                              00610004
+006200             MOVE 'SUM OF 2 NUMBERS IS DISPLAYED' TO MESSAGEO     00620004
+006300        ELSE                                                      00630004
+006400             MOVE 'INPUTS ARE NOT NUMERIC' TO MESSAGEO.           00640005
+006500 RECEIVE-MAP.                                                     00650004
+006600     EXEC CICS RECEIVE                                            00660004
+006700         MAP('CALMAP')                                            00670004
+006800         MAPSET('P16AS01')                                        00680004
+006900         INTO(CALMAPI)                                            00690004
+007000     END-EXEC.                                                    00700004
+
+
+
+
+   Question 2:
+
+P16AS02  DFHMSD TYPE=&SYSPARM,                                         C
+               CTRL=(FREEKB),                                          C
+               CURSLOC=YES,                                            C
+               LANG=COBOL,                                             C
+               MODE=INOUT,                                             C
+               STORAGE=AUTO,                                           C
+               TIOAPFX=YES
+MENU     DFHMDI COLUMN=0001,                                           C
+               LINE=0001,                                              C
+               SIZE=(24,80)
+MENUDRIVEN DFHMDF ATTRB=(PROT,BRT),                                    C
+               INITIAL='MENU DRIVEN',                                  C
+               LENGTH=11,                                              C
+               POS=(1,28)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='INPUT1',                                       C
+               LENGTH=6,                                               C
+               POS=(4,18)
+NUMBER1  DFHMDF ATTRB=(UNPROT,BRT,IC),                                 C
+               INITIAL='00',                                           C
+               LENGTH=2,                                               C
+               POS=(4,31)
+         DFHMDF ATTRB=ASKIP,                                           C
+               LENGTH=1,                                               C
+               POS=(4,34)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='INPUT2',                                       C
+               LENGTH=6,                                               C
+               POS=(7,18)
+NUMBER2  DFHMDF ATTRB=(UNPROT,BRT),                                    C
+               INITIAL='00',                                           C
+               LENGTH=2,                                               C
+               POS=(7,31)
+         DFHMDF ATTRB=ASKIP,                                           C
+               LENGTH=1,                                               C
+               POS=(7,34)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='ADD',                                          C
+               LENGTH=3,                                               C
+               POS=(10,18)
+ADD      DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='   ',                                          C
+               LENGTH=3,                                               C
+               POS=(10,31)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='SUB',                                          C
+               LENGTH=3,                                               C
+               POS=(13,18)
+SUB      DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='   ',                                          C
+               LENGTH=3,                                               C
+               POS=(13,31)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='DIV',                                          C
+               LENGTH=3,                                               C
+               POS=(16,18)
+DIV      DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='   ',                                          C
+               LENGTH=3,                                               C
+               POS=(16,31)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='MULT',                                         C
+               LENGTH=4,                                               C
+               POS=(19,18)
+MULT     DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='   ',                                          C
+               LENGTH=3,                                               C
+               POS=(19,31)
+MESSAGE  DFHMDF ATTRB=(UNPROT,BRT),                                    C
+               INITIAL='                              ',               C
+               LENGTH=30,                                              C
+               POS=(22,14)
+         DFHMSD TYPE=FINAL
+         END
+
+
+          source code:
+
+000100 IDENTIFICATION DIVISION.                                         00010000
+000200 PROGRAM-ID. P16AP02.                                             00020000
+000300 DATA DIVISION.                                                   00030000
+000400 WORKING-STORAGE SECTION.                                         00040000
+000500 01  WS-CA       PIC X(01).                                       00050000
+000600 01  WS-IN1      PIC 9(02).                                       00060000
+000700 01  WS-IN1O REDEFINES WS-IN1 PIC X(02).                          00070000
+000800 01  WS-IN2      PIC 9(02).                                       00080000
+000900 01  WS-IN2O REDEFINES WS-IN2 PIC X(02).                          00090000
+001000 01  WS-ADD      PIC 9(03).                                       00100000
+001100 01  WS-ADDO     PIC 9(03).                                       00110001
+001200 01  WS-SUB      PIC 9(03).                                       00120000
+001300 01  WS-SUBO     PIC 9(03).                                       00130001
+001400 01  WS-DIV      PIC 9(03).                                       00140000
+001500 01  WS-DIVO     PIC 9(03).                                       00150001
+001600 01  WS-MULT     PIC 9(03).                                       00160000
+001700 01  WS-MULTO    PIC 9(03).                                       00170001
+001800 01  WS-MESSAGE  PIC X(30) VALUE                                  00180000
+001900     'END OF THE PROGRAM, BYE, BYE!!'.                            00190000
+002000     COPY P16AS02.                                                00200000
+002100     COPY DFHAID.                                                 00210000
+002200 LINKAGE SECTION.                                                 00220000
+002300 01  DFHCOMMAREA     PIC X(01).                                   00230000
+002400 PROCEDURE DIVISION.                                              00240000
+002500 MAIN-PARA.                                                       00250000
+002600     IF EIBCALEN = ZERO                                           00260000
+002700         PERFORM FIRST-PARA                                       00270000
+002800     ELSE                                                         00280000
+002900         PERFORM NEXT-PARA.                                       00290000
+003000 END-PARA.                                                        00300000
+003100     EXEC CICS RETURN                                             00310000
+003200         TRANSID('P16B')                                          00320000
+003300         COMMAREA(WS-CA)                                          00330000
+003400     END-EXEC.                                                    00340000
+003500 FIRST-PARA.                                                      00350000
+003600     MOVE LOW-VALUES TO MENUO                                     00360005
+003700     PERFORM SEND-MAP.                                            00370000
+003800 SEND-MAP.                                                        00380000
+003900     EXEC CICS SEND                                               00390000
+004000         MAP('MENU')                                              00400002
+004100         MAPSET('P16AS02')                                        00410000
+004200         FROM (MENUO)                                             00420004
+004300         ERASE                                                    00430000
+004400     END-EXEC.                                                    00440000
+004500 NEXT-PARA.                                                       00450000
+004600     IF EIBAID = DFHPF3                                           00460000
+004700         EXEC CICS SEND TEXT                                      00470000
+004800             FROM(WS-MESSAGE)                                     00480000
+004900             ERASE                                                00490000
+005000         END-EXEC                                                 00500000
+005100         EXEC CICS RETURN                                         00510000
+005200         END-EXEC                                                 00520000
+005300     ELSE                                                         00530000
+005400     IF EIBAID = DFHENTER                                         00540000
+005500         PERFORM PROCESS-PARA                                     00550000
+005600     ELSE                                                         00560000
+005700         MOVE 'INVALID KEY PRESSED' TO MESSAGEO.                  00570000
+005800       PERFORM SEND-MAP.                                          00580000
+005900 PROCESS-PARA.                                                    00590000
+006000     PERFORM RECEIVE-MAP.                                         00600000
+006100     IF NUMBER1L = ZERO OR NUMBER2L = ZERO                        00610006
+006200         MOVE 'PLEASE ENTER VALID INPUTS' TO MESSAGEO             00620000
+006300     ELSE                                                         00630000
+006400        IF NUMBER1I IS NUMERIC AND NUMBER2I IS NUMERIC            00640006
+006500             MOVE NUMBER1I TO WS-IN1O                             00650006
+006600             MOVE NUMBER2I TO WS-IN2O                             00660006
+006700             COMPUTE WS-ADD = WS-IN1 + WS-IN2                     00670000
+006800             COMPUTE WS-SUB = WS-IN1 - WS-IN2                     00680000
+006900             COMPUTE WS-DIV = WS-IN1 / WS-IN2                     00690000
+007000             COMPUTE WS-MULT = WS-IN1 * WS-IN2                    00700000
+007100             MOVE WS-ADD  TO ADDO                                 00710000
+007200             MOVE WS-SUB  TO SUBO                                 00720000
+007300             MOVE WS-DIV  TO DIVO                                 00730000
+007400             MOVE WS-MULT TO MULTO                                00740000
+007500             MOVE 'OPERATION ON NUMBERS DISPLAYED' TO MESSAGEO    00750000
+007600        ELSE                                                      00760000
+007700             MOVE 'INPUTS ARE NOT NUMERIC' TO MESSAGEO.           00770000
+007800 RECEIVE-MAP.                                                     00780000
+007900     EXEC CICS RECEIVE                                            00790000
+008000         MAP('MENU')                                              00800001
+008100         MAPSET('P16AS02')                                        00810000
+008200         INTO(MENUI)                                              00820004
+008300     END-EXEC.                                                    00830000
+
+Question 3:
+
+P16AS03  DFHMSD TYPE=&SYSPARM,                                         C
+               CURSLOC=YES,                                            C
+               LANG=COBOL,                                             C
+               MODE=INOUT,                                             C
+               STORAGE=AUTO,                                           C
+               TIOAPFX=YES
+MENUMAP  DFHMDI COLUMN=0001,                                           C
+               LINE=0001,                                              C
+               SIZE=(24,80)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='DATE:',                                        C
+               LENGTH=5,                                               C
+               POS=(1,1)
+DATE     DFHMDF ATTRB=(UNPROT,BRT),                                    C
+               INITIAL='DD/MM/CCYY',                                   C
+               LENGTH=10,                                              C
+               POS=(1,8)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='TIME:',                                        C
+               LENGTH=5,                                               C
+               POS=(1,59)
+TIME     DFHMDF ATTRB=(UNPROT,BRT),                                    C
+               INITIAL='HH:MM:SS',                                     C
+               LENGTH=8,                                               C
+               POS=(1,66)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='EMPLOYEE MANAGEMENT SYSTEM',                   C
+               LENGTH=26,                                              C
+               POS=(4,22)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='1 - CALCULATOR PROGRAM',                       C
+               LENGTH=22,                                              C
+               POS=(8,15)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='2 - EMPLOYEE INQUIRY',                         C
+               LENGTH=20,                                              C
+               POS=(11,15)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='3 - EMPLOYEE MAINTENANCE',                     C
+               LENGTH=24,                                              C
+               POS=(14,15)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='4 - EMPLOYEE BROWSE',                          C
+               LENGTH=19,                                              C
+               POS=(17,15)
+CHOICE   DFHMDF ATTRB=(UNPROT,BRT,IC),                                 C
+               INITIAL='0',                                            C
+               LENGTH=1,                                               C
+               POS=(21,15)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='- ENTER OPTION',                               C
+               LENGTH=14,                                              C
+               POS=(21,18)
+MESSAGE  DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='                              ',               C
+               LENGTH=30,                                              C
+               POS=(23,2)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='ENTER = PROCESS',                              C
+               LENGTH=15,                                              C
+               POS=(24,8)
+         DFHMDF ATTRB=(PROT,BRT),                                      C
+               INITIAL='PF3 = EXIT',                                   C
+               LENGTH=10,                                              C
+               POS=(24,36)
+         DFHMSD TYPE=FINAL
+         END
+
+
+          source code:
+
+000100 IDENTIFICATION DIVISION.                                         00010008
+000200 PROGRAM-ID. P16AP03.                                             00020008
+000300 DATA DIVISION.                                                   00030008
+000400 WORKING-STORAGE SECTION.                                         00040008
+000500 01 WS-CA    PIC X(01).                                           00050008
+000600 01 WS-CHOICE  PIC 9(01) VALUE ZERO.                              00060008
+000700    88 VALID-CHOICE            VALUE 1 THRU 4.                    00070008
+000800 01 WS-CHOICE-X REDEFINES WS-CHOICE                               00080008
+000900                     PIC X(01).                                   00090008
+001000  01 WS-DATE-TIME    PIC S9(15) COMP-3 VALUE ZERO.                00100008
+001100  01 WS-MESSAGE      PIC X(30) VALUE                              00110008
+001200     'END OF THE PROGRAM,BYE,BYE'.                                00120008
+001300     COPY P16AS03.                                                00130010
+001400     COPY DFHAID.                                                 00140008
+001500  LINKAGE SECTION.                                                00150008
+001600  01 DFHCOMMAREA   PIC X(01).                                     00160008
+001700  PROCEDURE DIVISION.                                             00170008
+001800  MAIN-PARA.                                                      00180008
+001900       IF EIBCALEN = ZERO                                         00190008
+002000            PERFORM FIRST-PARA                                    00200009
+002100       ELSE                                                       00210008
+002200           PERFORM NEXT-PARA.                                     00220008
+002300  END-PARA.                                                       00230008
+002400       EXEC CICS RETURN                                           00240008
+002500           TRANSID('P16C')                                        00250014
+002600           COMMAREA(WS-CA)                                        00260008
+002700       END-EXEC.                                                  00270008
+002800  FIRST-PARA.                                                     00280008
+002900       MOVE LOW-VALUES TO MENUMAPO                                00290008
+003000       PERFORM SEND-PARA.                                         00300008
+003100  SEND-PARA.                                                      00310008
+003200       PERFORM DATE-TIME-PARA.                                    00320008
+003300       EXEC CICS SEND                                             00330008
+003400            MAP('MENUMAP')                                        00340008
+003500            MAPSET('P16AS03')                                     00350008
+003600            FROM (MENUMAPO)                                       00360008
+003700            ERASE                                                 00370008
+003800       END-EXEC.                                                  00380008
+003900  NEXT-PARA.                                                      00390008
+004000      EVALUATE EIBAID                                             00400011
+004100        WHEN DFHPF3                                               00410008
+004200           EXEC CICS SEND TEXT                                    00420008
+004300              FROM(WS-MESSAGE)                                    00430008
+004400              ERASE                                               00440008
+004500           END-EXEC                                               00450008
+004600           EXEC CICS RETURN                                       00460008
+004700           END-EXEC                                               00470008
+004800        WHEN DFHENTER                                             00480013
+004900           PERFORM PROCESS-PARA                                   00490008
+005000        WHEN OTHER                                                00500008
+005100           MOVE 'INVALID KEY PRESSED' TO MESSAGEO                 00510008
+005200      END-EVALUATE                                                00520008
+005300         PERFORM SEND-PARA.                                       00530008
+005400  PROCESS-PARA.                                                   00540008
+005500         PERFORM RECEIVE-MAP.                                     00550008
+005600         MOVE CHOICEI TO WS-CHOICE-X                              00560008
+005700         IF VALID-CHOICE                                          00570008
+005800            PERFORM TRANSFER-PARA                                 00580008
+005900         ELSE                                                     00590008
+006000            MOVE 'INVALID CHOICE' TO MESSAGEO                     00600008
+006100         END-IF.                                                  00610008
+006200  TRANSFER-PARA.                                                  00620008
+006300         EVALUATE WS-CHOICE                                       00630008
+006400            WHEN 1                                                00640008
+006500              EXEC CICS XCTL                                      00650008
+006600                 PROGRAM('P16AP02')                               00660019
+006700              END-EXEC                                            00670008
+006800            WHEN 2                                                00680008
+006900              EXEC CICS XCTL                                      00690008
+007000                 PROGRAM('P16AP04')                               00700020
+007100              END-EXEC                                            00710008
+007200            WHEN 3                                                00720020
+007300             EXEC CICS XCTL                                       00730020
+007400                PROGRAM('P16AP05')                                00740020
+007500             END-EXEC                                             00750020
+007600          WHEN 4                                                  00760021
+007700             MOVE 'PROGRAM NOT READY' TO MESSAGEO                 00770021
+007800*            EXEC CICS XCTL                                       00780019
+007900*               PROGRAM('P16AP06')                                00790019
+008000*            END-EXEC                                             00800019
+008100            WHEN OTHER                                            00810008
+008200              MOVE 'PROGRAM NOT READY' TO MESSAGEO                00820008
+008300         END-EVALUATE.                                            00830008
+008400  RECEIVE-MAP.                                                    00840015
+008500       EXEC CICS RECEIVE                                          00850008
+008600          MAP('MENUMAP')                                          00860008
+008700          MAPSET('P16AS03')                                       00870008
+008800          INTO (MENUMAPI)                                         00880008
+008900      END-EXEC.                                                   00890008
+009000  DATE-TIME-PARA.                                                 00900008
+009100      EXEC CICS ASKTIME                                           00910008
+009200           ABSTIME(WS-DATE-TIME)                                  00920008
+009300      END-EXEC.                                                   00930008
+009400      EXEC CICS FORMATTIME                                        00940008
+009500           ABSTIME(WS-DATE-TIME)                                  00950008
+009600      END-EXEC.                                                   00960008
+009700      EXEC CICS FORMATTIME                                        00970008
+009800           ABSTIME(WS-DATE-TIME)                                  00980008
+009900           DDMMYYYY(DATEO)                                        00990008
+010000           DATESEP                                                01000008
+010100           TIME(TIMEO)                                            01010008
+010200           TIMESEP                                                01020008
+010300      END-EXEC.                                                   01030008
+
+
+
+      Question 4:
+
+P16AS04  DFHMSD TYPE=&SYSPARM,                                         C00010004
+               CTRL=(FREEKB),                                          C00020000
+               EXTATT=YES,                                             C00030000
+               LANG=COBOL,                                             C00040000
+               MODE=INOUT,                                             C00050000
+               STORAGE=AUTO                                             00060000
+EMP     DFHMDI COLUMN=0001,                                            C00070005
+               LINE=0001,                                              C00080000
+               SIZE=(24,80),                                           C00090000
+               TIOAPFX=YES                                              00100000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00110000
+               INITIAL='DATE:',                                        C00120000
+               LENGTH=5,                                               C00130000
+               POS=(1,1)                                                00140000
+DATE     DFHMDF ATTRB=(PROT,NUM,BRT),                                  C00150005
+               INITIAL='DD/MM/CCYY',                                   C00160000
+               LENGTH=10,                                              C00170000
+               POS=(1,8)                                                00180000
+         DFHMDF ATTRB=ASKIP,                                           C00190000
+               LENGTH=1,                                               C00200000
+               POS=(1,19)                                               00210000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00220000
+               INITIAL='TIME:',                                        C00230000
+               LENGTH=5,                                               C00240000
+               POS=(1,66)                                               00250000
+TIME     DFHMDF ATTRB=(PROT,NUM,BRT),                                  C00260005
+               INITIAL='HH:MM:SS',                                     C00270000
+               LENGTH=8,                                               C00280000
+               POS=(1,72)                                               00290000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00300000
+               INITIAL='EMPLOYEE INQUIRY PROGRAM',                     C00310000
+               LENGTH=26,                                              C00320000
+               POS=(2,22)                                               00330000
+         DFHMDF ATTRB=ASKIP,                                           C00340000
+               LENGTH=1,                                               C00350000
+               POS=(2,49)                                               00360000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00370000
+               INITIAL='ID:',                                          C00380000
+               LENGTH=3,                                               C00390000
+               POS=(4,15)                                               00400000
+EMPID    DFHMDF ATTRB=(UNPROT,NUM,BRT,IC),                             C00410000
+               INITIAL='00000',                                        C00420003
+               LENGTH=5,                                               C00430000
+               POS=(4,20),                                             C00440000
+               VALIDN=MUSTFILL                                          00450000
+         DFHMDF ATTRB=ASKIP,                                           C00460000
+               LENGTH=1,                                               C00470000
+               POS=(4,26)                                               00480000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00490000
+               INITIAL='DOB:',                                         C00500000
+               LENGTH=4,                                               C00510000
+               POS=(4,43)                                               00520000
+EMPDOB   DFHMDF ATTRB=(PROT,NUM,BRT),                                  C00530000
+               INITIAL='DD-MMM-CCYY',                                  C00540000
+               LENGTH=11,                                              C00550000
+               POS=(4,48)                                               00560000
+         DFHMDF ATTRB=ASKIP,                                           C00570000
+               LENGTH=1,                                               C00580000
+               POS=(4,60)                                               00590000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00600000
+               INITIAL='NAME:',                                        C00610000
+               LENGTH=5,                                               C00620000
+               POS=(6,15)                                               00630000
+EMPNAME  DFHMDF ATTRB=(PROT,BRT),                                      C00640000
+               INITIAL='               ',                              C00650000
+               LENGTH=15,                                              C00660000
+               POS=(6,21)                                               00670000
+         DFHMDF ATTRB=(ASKIP,BRT),                                     C00680000
+               LENGTH=1,                                               C00690000
+               POS=(6,37)                                               00700000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00820000
+               INITIAL='LOC:',                                         C00830000
+               LENGTH=4,                                               C00840000
+               POS=(8,15)                                               00850000
+EMPLOC   DFHMDF ATTRB=(PROT,BRT),                                      C00860000
+               INITIAL='   ',                                          C00870000
+               LENGTH=3,                                               C00880000
+               POS=(8,20)                                               00890000
+         DFHMDF ATTRB=(ASKIP,BRT),                                     C00900000
+               INITIAL=' ',                                            C00910000
+               LENGTH=1,                                               C00920000
+               POS=(8,24)                                               00930000
+         DFHMDF ATTRB=(PROT,BRT),                                      C00940000
+               INITIAL='TECH:',                                        C00950000
+               LENGTH=5,                                               C00960000
+               POS=(8,40)                                               00970000
+EMPTECH  DFHMDF ATTRB=(PROT,BRT),                                      C00980000
+               INITIAL='     ',                                        C00990000
+               LENGTH=5,                                               C01000000
+               POS=(8,46)                                               01010000
+         DFHMDF ATTRB=ASKIP,                                           C01020000
+               LENGTH=1,                                               C01030000
+               POS=(8,52)                                               01040000
+         DFHMDF ATTRB=(PROT,BRT),                                      C01050000
+               INITIAL='EARN:',                                        C01060000
+               LENGTH=5,                                               C01070000
+               POS=(10,15)                                              01080000
+EMPEARN  DFHMDF ATTRB=(PROT,BRT),                                      C01090000
+               INITIAL='ZZ,ZZ9.99',                                    C01100000
+               LENGTH=9,                                               C01110000
+               POS=(10,21)                                              01120000
+         DFHMDF ATTRB=ASKIP,                                           C01130000
+               LENGTH=1,                                               C01140000
+               POS=(10,31)                                              01150000
+         DFHMDF ATTRB=(PROT,BRT),                                      C01160000
+               INITIAL='DEDN:',                                        C01170000
+               LENGTH=5,                                               C01180000
+               POS=(10,40)                                              01190000
+EMPDEDN  DFHMDF ATTRB=(PROT,BRT),                                      C01200000
+               INITIAL='ZZ,ZZ9.99',                                    C01210000
+               LENGTH=9,                                               C01220000
+               POS=(10,46)                                              01230000
+         DFHMDF ATTRB=ASKIP,                                           C01240000
+               LENGTH=1,                                               C01250000
+               POS=(10,56)                                              01260000
+         DFHMDF ATTRB=(PROT,BRT,DET),                                  C01270000
+               INITIAL='SAL:',                                         C01280000
+               LENGTH=4,                                               C01290000
+               POS=(12,15)                                              01300000
+EMPSAL   DFHMDF ATTRB=(PROT,BRT),                                      C01310000
+               INITIAL='ZZ,ZZ9.99',                                    C01320000
+               LENGTH=9,                                               C01330000
+               POS=(12,20)                                              01340000
+         DFHMDF ATTRB=ASKIP,                                           C01350000
+               LENGTH=1,                                               C01360000
+               POS=(12,30)                                              01370000
+MESSAGE  DFHMDF ATTRB=(PROT,BRT),                                      C01380000
+               INITIAL='ENTER EMPLOYEE ID FOR INQUIRY OF EMPLOYE',     C01390003
+               LENGTH=40,                                              C01400000
+               POS=(21,1)                                               01410000
+         DFHMDF ATTRB=(PROT,BRT),                                      C01420000
+               INITIAL='ENTER = PROCESS; PF3 = GO TO MENU',            C01430000
+               LENGTH=33,                                              C01440000
+               POS=(23,1)                                               01450000
+DUMMY    DFHMDF ATTRB=(PROT,DRK,FSET),                                 C01460000
+               INITIAL='X',                                            C01470000
+               LENGTH=1,                                               C01480000
+               POS=(23,73)                                              01490000
+         DFHMSD TYPE=FINAL                                              01500000
+         END                                                            01510000
+
+
+          sorce code:
+
+
+000100 IDENTIFICATION DIVISION.                                         00010001
+000200 PROGRAM-ID. P16AP04.                                             00020003
+000300 DATA DIVISION.                                                   00030000
+000400 WORKING-STORAGE SECTION.                                         00040000
+000500 01 WS-CA   PIC X(01).                                            00050000
+000600 01 WS-RESP-CODE      PIC S9(08) COMP VALUE ZERO.                 00060000
+000700 01 WS-EMPID PIC 9(01) VALUE ZERO.                                00070000
+000800 01 WS-EMPID-X REDEFINES WS-EMPID PIC X(01).                      00080000
+000900 01 EMP-RECORD.                                                   00090000
+001000    02 EMP-ID  PIC X(05) VALUE SPACES.                            00100000
+001100    02 EMP-NAME PIC X(15) VALUE SPACES.                           00110000
+001200    02 EMP-LOC PIC X(03) VALUE SPACES.                            00120000
+001300    02 EMP-DOB.                                                   00130000
+001400       03 EMPDOBYYYY PIC X(04) VALUE SPACES.                      00140000
+001500       03 EMPDOBMM PIC 9(02) VALUE ZERO.                          00150000
+001600       03 EMPDOBDD   PIC X(02) VALUE SPACES.                      00160000
+001700    02 EMP-TECH      PIC X(04) VALUE SPACES.                      00170000
+001800    02 EMP-EARN   PIC 9(07).                                      00180000
+001900    02 EMP-DEDN   PIC 9(7).                                       00190000
+002000    02 FILLER     PIC X(31).                                      00200000
+002100 01 WS-DOB.                                                       00210000
+002200       03 EMPDOBDD  PIC X(02) VALUE SPACES.                       00220000
+002300       03 EMPDOBMMM PIC X(03) VALUE SPACES.                       00230000
+002400       03 EMPDOBYYYY   PIC X(04) VALUE SPACES.                    00240000
+002500 01 WS-SAL           PIC ZZ,ZZ,ZZ9 VALUE ZERO.                    00250000
+002600 01 WS-DATE-TIME    PIC S9(15) COMP-3 VALUE ZERO.                 00260000
+002700 01 WS-MONTH-TABLE   PIC X(36) VALUE                              00270000
+002800       'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.                    00280000
+002900 01 FILLER REDEFINES WS-MONTH-TABLE.                              00290000
+003000    03 WS-MONTH   PIC X(03) OCCURS 12 TIMES.                      00300000
+003100 01 SUB PIC X(02).                                                00310000
+003200 01 WS-MESSAGE PIC X(26) VALUE 'END OF PROGRAM BYE BYE!!'.        00320000
+003300       COPY  P16AS04.                                             00330003
+003400       COPY DFHAID.                                               00340000
+003500 LINKAGE SECTION.                                                 00350000
+003600 01 DFHCOMMAREA  PIC X(01).                                       00360000
+003700 PROCEDURE DIVISION.                                              00370000
+003800 MAIN-PARA.                                                       00380000
+003900     IF EIBCALEN = ZERO                                           00390000
+004000        PERFORM FIRST-PARA                                        00400000
+004100     ELSE                                                         00410000
+004200        PERFORM NEXT-PARA.                                        00420000
+004300 END-PARA.                                                        00430000
+004400     EXEC CICS RETURN                                             00440000
+004500         TRANSID ('P16D')                                         00450003
+004600         COMMAREA (WS-CA)                                         00460000
+004700     END-EXEC.                                                    00470000
+004800 FIRST-PARA.                                                      00480000
+004900     MOVE LOW-VALUES TO EMPO                                      00490004
+005000     PERFORM SEND-MAP.                                            00500000
+005100 SEND-MAP.                                                        00510000
+005200     PERFORM DATE-TIME-PARA                                       00520000
+005300     EXEC CICS SEND                                               00530000
+005400        MAP('EMP')                                                00540004
+005500        MAPSET('P16AS04')                                         00550003
+005600        FROM (EMPO)                                               00560004
+005700        ERASE                                                     00570000
+005800    END-EXEC.                                                     00580000
+005900 NEXT-PARA.                                                       00590000
+006000     EVALUATE EIBAID                                              00600000
+006100     WHEN DFHPF3                                                  00610000
+006200       EXEC CICS XCTL                                             00620000
+006300         PROGRAM('P16AP03')                                       00630003
+006400       END-EXEC                                                   00640000
+006500     WHEN DFHENTER                                                00650000
+006600     PERFORM PROCESS-PARA                                         00660000
+006700     WHEN OTHER                                                   00670000
+006800     MOVE 'INVALID KEY' TO MESSAGEO                               00680000
+006900     END-EVALUATE                                                 00690000
+007000     PERFORM SEND-MAP.                                            00700000
+007100 PROCESS-PARA.                                                    00710000
+007200     PERFORM RECEIVE-MAP.                                         00720000
+007300     IF EMPIDL = ZERO                                             00730000
+007400     MOVE 'PLEASE ENTER AN EMPLOYEE ID' TO MESSAGEO               00740000
+007500     IF                                                           00750000
+007600      EMPIDI = SPACES                                             00760000
+007700     MOVE 'PLEASE ENTER AN EMPLOYEE ID' TO MESSAGEO               00770000
+007800     END-IF                                                       00780000
+007900     ELSE                                                         00790000
+008000     PERFORM READ-EMPLOYEE                                        00800000
+008100     END-IF.                                                      00810000
+008200 MOVE-PARA.                                                       00820000
+008300     MOVE EMP-ID TO EMPIDO                                        00830000
+008400     MOVE EMP-NAME TO EMPNAMEO                                    00840000
+008500     MOVE EMP-LOC TO EMPLOCO                                      00850000
+008600     PERFORM DOB-PARA                                             00860000
+008700     MOVE WS-DOB TO EMPDOBO                                       00870000
+008800     MOVE EMP-TECH TO EMPTECHO                                    00880000
+008900     MOVE EMP-EARN TO EMPEARNO                                    00890000
+009000     MOVE EMP-DEDN TO EMPDEDNO                                    00900000
+009100     COMPUTE WS-SAL = EMP-EARN  - EMP-DEDN                        00910000
+009200     MOVE WS-SAL TO EMPSALO                                       00920000
+009300     MOVE 'EMPLOYEE DETAILS FOUND' TO MESSAGEO.                   00930000
+009400 DOB-PARA.                                                        00940000
+009500     MOVE CORR EMP-DOB TO WS-DOB                                  00950000
+009600     MOVE WS-MONTH(EMPDOBMM) TO EMPDOBMMM.                        00960000
+009700 DATE-TIME-PARA.                                                  00970000
+009800        EXEC CICS ASKTIME                                         00980000
+009900            ABSTIME(WS-DATE-TIME)                                 00990000
+010000        END-EXEC.                                                 01000000
+010100        EXEC CICS FORMATTIME                                      01010000
+010200            ABSTIME(WS-DATE-TIME)                                 01020000
+010300            DDMMYYYY(DATEO)                                       01030004
+010400            DATESEP                                               01040000
+010500            TIME(TIMEO)                                           01050004
+010600            TIMESEP                                               01060000
+010700        END-EXEC.                                                 01070000
+010800 RECEIVE-MAP.                                                     01080000
+010900      EXEC CICS RECEIVE                                           01090000
+011000         MAP('EMP')                                               01100004
+011100         MAPSET('P16AS04')                                        01110003
+011200         INTO(EMPI)                                               01120004
+011300      END-EXEC.                                                   01130000
+011400 READ-EMPLOYEE.                                                   01140000
+011500       EXEC CICS READ                                             01150000
+011600          FILE('P16AFILE')                                        01160000
+011700          RIDFLD(EMPIDI)                                          01170000
+011800          INTO(EMP-RECORD)                                        01180000
+011900          RESP(WS-RESP-CODE)                                      01190000
+012000       END-EXEC                                                   01200000
+012100       EVALUATE WS-RESP-CODE                                      01210000
+012200          WHEN DFHRESP(NORMAL)                                    01220000
+012300            PERFORM MOVE-PARA                                     01230000
+012400          WHEN DFHRESP(NOTFND)                                    01240000
+012500            MOVE SPACES TO EMPNAMEO, EMPDOBO,                     01250000
+012600                    EMPTECHO, EMPLOCO, EMPEARNO,                  01260000
+012700                    EMPDEDNO, EMPSALO                             01270000
+012800            MOVE 'EMPLOYEE NOT FOUND' TO MESSAGEO                 01280000
+012900        WHEN OTHER                                                01290000
+013000            MOVE 'ERROR ACCESSING FILE' TO MESSAGEO               01300000
+013100            MOVE SPACES TO EMPNAMEO, EMPDOBO,                     01310000
+013200                       EMPTECHO, EMPLOCO, EMPEARNO,               01320000
+013300                       EMPDEDNO, EMPSALO                          01330000
+013400        END-EVALUATE.                                             01340000
+013500        PERFORM SEND-MAP.                                         01350000
+
+
+Question 5:
+
+P16AS05  DFHMSD TYPE=&SYSPARM,                                         C00010010
+               CTRL=(FREEKB),                                          C00020010
+               CURSLOC=YES,                                            C00030010
+               LANG=COBOL,                                             C00040010
+               MODE=INOUT,                                             C00050010
+               STORAGE=AUTO,                                           C00060010
+               TIOAPFX=YES                                              00070010
+KEY     DFHMDI COLUMN=0001,                                            C00080010
+               LINE=0001,                                              C00090010
+               SIZE=(24,80)                                             00100010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00110010
+               INITIAL='DATE:',                                        C00120010
+               LENGTH=5,                                               C00130010
+               POS=(1,1)                                                00140010
+DATE     DFHMDF ATTRB=(UNPROT,BRT),                                    C00150010
+               INITIAL='DD/MM/CCYY',                                   C00160010
+               LENGTH=10,                                              C00170010
+               POS=(1,7)                                                00180014
+         DFHMDF ATTRB=(PROT,BRT),                                      C00190010
+               INITIAL='TIME:',                                        C00200010
+               LENGTH=5,                                               C00210010
+               POS=(1,57)                                               00220010
+TIME     DFHMDF ATTRB=(UNPROT,BRT),                                    C00230010
+               INITIAL='HH:MM:SS',                                     C00240010
+               LENGTH=8,                                               C00250010
+               POS=(1,63)                                               00260010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00270010
+               INITIAL='EMPLOYEE INQUIRY PROGRAM',                     C00280010
+               LENGTH=24,                                              C00290010
+               POS=(2,19)                                               00300010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00310010
+               INITIAL='ID:',                                          C00320010
+               LENGTH=3,                                               C00330010
+               POS=(4,8)                                                00340010
+E-ID     DFHMDF ATTRB=(UNPROT,BRT,IC),                                 C00350010
+               INITIAL='00000',                                        C00360010
+               LENGTH=5,                                               C00370010
+               POS=(4,14)                                               00380010
+         DFHMDF ATTRB=(ASKIP,NORM),                                    C00381022
+               LENGTH=1,                                               C00382023
+               POS=(4,20)                                               00383022
+MESSAGE  DFHMDF ATTRB=(PROT,BRT),                                      C00390010
+               INITIAL='ENTER EMPLOYEE TO BROWSE DETAILS',             C00400010
+               LENGTH=33,                                              C00410010
+               POS=(15,8)                                               00420010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00430010
+               INITIAL='ENTER = PROCESS; PF3 = EXIT',                  C00440010
+               LENGTH=33,                                              C00450010
+               POS=(17,8)                                               00460010
+DUMMY    DFHMDF ATTRB=(PROT,DRK,FSET),                                 C00470010
+               INITIAL=' ',                                            C00480010
+               LENGTH=1,                                               C00490010
+               POS=(23,70)                                              00500010
+DETAIL   DFHMDI COLUMN=0001,                                           C00510010
+               LINE=0001,                                              C00520010
+               SIZE=(24,80)                                             00530010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00540010
+               INITIAL='DATE:',                                        C00550010
+               LENGTH=5,                                               C00560010
+               POS=(1,1)                                                00570010
+DATE1    DFHMDF ATTRB=(UNPROT,BRT),                                    C00580014
+               INITIAL='DD:MM:CCYY',                                   C00590014
+               LENGTH=10,                                              C00600014
+               POS=(1,7)                                                00610014
+         DFHMDF ATTRB=(PROT,BRT),                                      C00620010
+               INITIAL='TIME:',                                        C00630010
+               LENGTH=5,                                               C00640010
+               POS=(1,57)                                               00650010
+TIME1    DFHMDF ATTRB=(UNPROT,BRT),                                    C00660010
+               INITIAL='HH:MM:SS',                                     C00670010
+               LENGTH=8,                                               C00680010
+               POS=(1,63)                                               00690010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00700010
+               INITIAL='EMPLOYEE INQUIRY PROGRAM',                     C00710010
+               LENGTH=24,                                              C00720010
+               POS=(2,19)                                               00730010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00740010
+               INITIAL='MODE:',                                        C00750010
+               LENGTH=5,                                               C00760010
+               POS=(3,25)                                               00770018
+MODE    DFHMDF ATTRB=(PROT,BRT),                                       C00780010
+               INITIAL='     ',                                        C00790010
+               LENGTH=5,                                               C00800010
+               POS=(3,32)                                               00810018
+         DFHMDF ATTRB=(PROT,BRT),                                      C00820010
+               INITIAL='ID:',                                          C00830010
+               LENGTH=3,                                               C00840010
+               POS=(4,8)                                                00850010
+E-ID1    DFHMDF ATTRB=(PROT,BRT),                                      C00860010
+               INITIAL='     ',                                        C00870010
+               LENGTH=5,                                               C00880010
+               POS=(4,14)                                               00890010
+         DFHMDF ATTRB=(ASKIP,NORM),                                    C00900010
+               LENGTH=1,                                               C00910023
+               POS=(4,20)                                               00920010
+         DFHMDF ATTRB=(PROT,BRT),                                      C00930010
+               INITIAL='DOB:',                                         C00940010
+               LENGTH=4,                                               C00950010
+               POS=(4,44)                                               00960010
+DOBDD    DFHMDF ATTRB=(UNPROT,BRT),                                    C00970014
+               INITIAL='DD',                                           C00980014
+               LENGTH=02,                                              C00990014
+               POS=(4,50)                                               01000010
+         DFHMDF ATTRB=(ASKIP,NORM),                                    C01000120
+               LENGTH=1,                                               C01000223
+               POS=(4,53)                                               01000321
+DOBMM    DFHMDF ATTRB=(UNPROT,BRT),                                    C01001014
+               INITIAL='MM',                                           C01002014
+               LENGTH=02,                                              C01003014
+               POS=(4,55)                                               01004021
+         DFHMDF ATTRB=(ASKIP,NORM),                                    C01004120
+               LENGTH=1,                                               C01004223
+               POS=(4,58)                                               01004321
+DOBYY    DFHMDF ATTRB=(UNPROT,BRT),                                    C01005014
+               INITIAL='YYYY',                                         C01006020
+               LENGTH=04,                                              C01007020
+               POS=(4,60)                                               01008021
+         DFHMDF ATTRB=(ASKIP,NORM),                                    C01010010
+               LENGTH=1,                                               C01020023
+               POS=(4,65)                                               01030021
+         DFHMDF ATTRB=(PROT,BRT),                                      C01040010
+               INITIAL='NAME:',                                        C01050010
+               LENGTH=5,                                               C01060010
+               POS=(6,8)                                                01070010
+NAME     DFHMDF ATTRB=(UNPROT,BRT),                                    C01080010
+               INITIAL='                     ',                        C01090010
+               LENGTH=21,                                              C01100010
+               POS=(6,15)                                               01110010
+         DFHMDF ATTRB=(ASKIP,BRT),                                     C01120024
+               LENGTH=0,                                               C01130010
+               POS=(6,37)                                               01140010
+         DFHMDF ATTRB=(PROT,BRT),                                      C01150010
+               INITIAL='LOC:',                                         C01160010
+               LENGTH=4,                                               C01170010
+               POS=(8,8)                                                01180010
+LOC      DFHMDF ATTRB=(UNPROT,BRT),                                    C01190010
+               INITIAL='   ',                                          C01200010
+               LENGTH=3,                                               C01210010
+               POS=(8,14)                                               01220010
+         DFHMDF ATTRB=(ASKIP,NORM),                                    C01230010
+               LENGTH=1,                                               C01240023
+               POS=(8,18)                                               01250010
+         DFHMDF ATTRB=(PROT,BRT),                                      C01260010
+               INITIAL='TECH:',                                        C01270010
+               LENGTH=5,                                               C01280010
+               POS=(8,34)                                               01290010
+TECH     DFHMDF ATTRB=(UNPROT,BRT),                                    C01300010
+               INITIAL='     ',                                        C01310010
+               LENGTH=5,                                               C01320010
+               POS=(8,41)                                               01330010
+         DFHMDF ATTRB=ASKIP,                                           C01340019
+               LENGTH=1,                                               C01350023
+               POS=(8,47)                                               01360010
+         DFHMDF ATTRB=(PROT,BRT),                                      C01370010
+               INITIAL='EARN:',                                        C01380010
+               LENGTH=5,                                               C01390010
+               POS=(10,8)                                               01400010
+EARNRS   DFHMDF ATTRB=(UNPROT,NUM),                                    C01410015
+               INITIAL='     ',                                        C01420015
+               LENGTH=5,                                               C01430015
+               POS=(10,15)                                              01440010
+EARNPS   DFHMDF ATTRB=(UNPROT,NUM),                                    C01441015
+               INITIAL='     ',                                        C01442015
+               LENGTH=4,                                               C01443015
+               POS=(10,21)                                              01444019
+         DFHMDF ATTRB=ASKIP,                                           C01450019
+               LENGTH=0,                                               C01460010
+               POS=(10,26)                                              01470019
+         DFHMDF ATTRB=(PROT,BRT),                                      C01480010
+               INITIAL='DEDN:',                                        C01490010
+               LENGTH=5,                                               C01500010
+               POS=(10,34)                                              01510010
+DEDNRS   DFHMDF ATTRB=(UNPROT,NUM),                                    C01520015
+               INITIAL='     ',                                        C01530015
+               LENGTH=5,                                               C01540015
+               POS=(10,41)                                              01550010
+DEDNPS   DFHMDF ATTRB=(UNPROT,NUM),                                    C01551015
+               INITIAL='    ',                                         C01552015
+               LENGTH=4,                                               C01553015
+               POS=(10,48)                                              01554019
+         DFHMDF ATTRB=ASKIP,                                           C01560019
+               LENGTH=0,                                               C01570010
+               POS=(10,53)                                              01580019
+         DFHMDF ATTRB=(PROT,BRT),                                      C01590010
+               INITIAL='SAL:',                                         C01600010
+               LENGTH=4,                                               C01610010
+               POS=(12,8)                                               01620010
+SAL      DFHMDF ATTRB=(PROT,NUM),                                      C01630025
+               INITIAL='         ',                                    C01640010
+               LENGTH=9,                                               C01650010
+               POS=(12,15)                                              01660010
+         DFHMDF ATTRB=ASKIP,                                           C01670019
+               LENGTH=0,                                               C01680010
+               POS=(12,25)                                              01690010
+LABEL1   DFHMDF ATTRB=(PROT,BRT),                                      C01691013
+               INITIAL='PF1=ADD',                                      C01692013
+               LENGTH=7,                                               C01693013
+               POS=(13,5)                                               01694013
+LABEL2   DFHMDF ATTRB=(PROT,BRT),                                      C01695013
+               INITIAL='PF4=UPDATE; PF5=DELETE',                       C01696013
+               LENGTH=22,                                              C01697013
+               POS=(13,14)                                              01698013
+MESSAGE1 DFHMDF ATTRB=(PROT,BRT),                                      C01700012
+               INITIAL='EMPLOYEE MESSAGE',                             C01710010
+               LENGTH=30,                                              C01720010
+               POS=(15,8)                                               01730010
+         DFHMDF ATTRB=(PROT,BRT),                                      C01740010
+               INITIAL='ENTER = PROCESS; PF3 = GO TO MENU',            C01750010
+               LENGTH=33,                                              C01760010
+               POS=(17,8)                                               01770010
+DUMMY2   DFHMDF ATTRB=(PROT,DRK,FSET),                                 C01780010
+               INITIAL=' ',                                            C01790010
+               LENGTH=1,                                               C01800010
+               POS=(23,70)                                              01810010
+         DFHMSD TYPE=FINAL                                              01820010
+         END                                                            01830010
+
+
+          source code:
+
+
+000100  IDENTIFICATION DIVISION.                                        00010000
+000200  PROGRAM-ID. P16AP05.                                            00020000
+000300  DATA DIVISION.                                                  00030000
+000400  WORKING-STORAGE SECTION.                                        00040014
+000500   01 WS-RESP-CODE      PIC S9(08) COMP VALUE ZERO.               00050021
+000600   01  PARA-TABLE                        VALUE SPACES.            00060026
+000700       03  PARA-NAME     PIC X(16) OCCURS 12 TIMES.               00070026
+000800   01  PARA-SUB          PIC 9(02) VALUE ZERO.                    00080026
+000900   01  WS-CA.                                                     00090022
+001000     03  WS-PROCESS-FLAG   PIC X(01) VALUE SPACES.                00100021
+001100      88  PROCESS-KEYMAP      VALUE '1'.                          00110026
+001200      88  PROCESS-ADD         VALUE '2'.                          00120022
+001300      88  PROCESS-UPD-DEL     VALUE '3'.                          00130022
+001400      88  PROCESS-DETMAP      VALUE '2', '3'.                     00140026
+001500     03  WS-EMP-ID PIC X(05) VALUE SPACES.                        00150021
+001600   01 MASTER-RECORD.                                              00160032
+001700    03 E-ID      PIC X(05).                                       00170032
+001800    03 NAME    PIC X(15).                                         00180032
+001900    03 LOC     PIC X(03).                                         00190032
+002000    03 DOB     PIC X(08).                                         00200032
+002100    03 TECH    PIC X(05).                                         00210032
+002200    03 EARN    PIC 9(05)V99.                                      00220032
+002300    03 DEDN    PIC 9(05)V99.                                      00230032
+002400   01 WS-DATE-TIME    PIC S9(15) COMP-3 VALUE ZERO.               00240021
+002500   01  WS-DOB.                                                    00250026
+002600       03  WS-DOB-YY            PIC 9(04) VALUE ZERO.             00260026
+002700       03  WS-DOB-MM            PIC 9(02) VALUE ZERO.             00270026
+002800       03  WS-DOB-DD            PIC 9(02) VALUE ZERO.             00280026
+002900   01 WS-SAL            PIC 9(05)V99 VALUE ZERO.                  00290021
+003000   01 WS-SALO          PIC ZZ,ZZ9.99 VALUE ZERO.                  00300029
+003100   01  WS-AMOUNT                PIC 9(05)V99 VALUE ZERO.          00310026
+003200   01  FILLER  REDEFINES  WS-AMOUNT.                              00320026
+003300       03  WS-AMT-RS            PIC 9(05).                        00330026
+003400       03  WS-AMT-PS            PIC 9(02).                        00340026
+003500   01  WS-VALID-FLAG            PIC X(01) VALUE 'N'.              00350026
+003600       88  VALID-DATA                     VALUE 'Y'.              00360026
+003700        COPY P16AS05.                                             00370000
+003800        COPY DFHAID.                                              00380000
+003900        COPY DFHBMSCA.                                            00390000
+004000*       COPY EMPREC.                                              00400032
+004100 LINKAGE SECTION.                                                 00410000
+004200  01  DFHCOMMAREA       PIC X(06).                                00420021
+004300 PROCEDURE DIVISION.                                              00430000
+004400 MAIN-PARA.                                                       00440000
+004500      IF EIBCALEN = ZERO                                          00450015
+004600        PERFORM FIRST-PARA                                        00460015
+004700     ELSE                                                         00470015
+004800        MOVE DFHCOMMAREA TO WS-CA                                 00480015
+004900        PERFORM NEXT-PARA THRU NEXT-PARA-X                        00490015
+005000     END-IF.                                                      00500015
+005100 END-PARA.                                                        00510016
+005200         EXEC CICS RETURN                                         00520012
+005300          TRANSID('P16E')                                         00530012
+005400          COMMAREA(WS-CA)                                         00540012
+005500         END-EXEC.                                                00550012
+005600 FIRST-PARA.                                                      00560016
+005700         MOVE LOW-VALUES TO KEYO                                  00570001
+005800         PERFORM SEND-FIRST-MAP.                                  00580012
+005900 SEND-FIRST-MAP.                                                  00590016
+006000         PERFORM DATE-TIME-PARA.                                  00600026
+006100         PERFORM SEND-KEY-MAP.                                    00610026
+006200         SET PROCESS-KEYMAP TO TRUE.                              00620026
+006300 SEND-KEY-MAP.                                                    00630026
+006400         MOVE -1 TO E-IDL                                         00640026
+006500         EXEC CICS SEND                                           00650026
+006600              MAP('KEY')                                          00660026
+006700              MAPSET('P16AS05')                                   00670026
+006800              FROM(KEYO)                                          00680026
+006900              CURSOR                                              00690026
+007000              ERASE                                               00700026
+007100         END-EXEC.                                                00710026
+007200 NEXT-PARA.                                                       00720026
+007300      EVALUATE TRUE                                               00730026
+007400        WHEN PROCESS-KEYMAP                                       00740026
+007500         PERFORM PROCESS-KEYMAP-PARA                              00750026
+007600        WHEN PROCESS-DETMAP                                       00760026
+007700         PERFORM PROCESS-DETMAP-PARA                              00770026
+007800      END-EVALUATE.                                               00780026
+007900 SEND-PARA.                                                       00790026
+008000      EVALUATE TRUE                                               00800026
+008100      WHEN PROCESS-KEYMAP                                         00810026
+008200         PERFORM SEND-KEY-MAP                                     00820026
+008300      WHEN PROCESS-DETMAP                                         00830026
+008400         PERFORM SEND-DETAIL-MAP                                  00840026
+008500      END-EVALUATE.                                               00850026
+008600  NEXT-PARA-X.                                                    00860026
+008700     EXIT.                                                        00870026
+008800  PROCESS-KEYMAP-PARA.                                            00880026
+008900     EVALUATE EIBAID                                              00890031
+009000       WHEN DFHENTER                                              00900026
+009100         PERFORM RECEIVE-PROCESS-KEYMAP                           00910026
+009200       WHEN DFHPF3                                                00920026
+009300          EXEC CICS XCTL                                          00930026
+009400             PROGRAM('P16AP03')                                   00940026
+009500          END-EXEC                                                00950031
+009600       WHEN OTHER                                                 00960029
+009700         MOVE 'INVALID KEY PRESSED' TO MESSAGEO                   00970031
+009800     END-EVALUATE.                                                00980031
+009900  RECEIVE-PROCESS-KEYMAP.                                         00990026
+010000         PERFORM RECEIVE-KEY-MAP                                  01000031
+010100      IF E-IDL = ZERO OR E-IDI = SPACES                           01010027
+010200         MOVE 'ENTER AN EMP ID' TO MESSAGEO                       01020026
+010300      ELSE                                                        01030026
+010400            PERFORM READ-EMPLOYEE                                 01040026
+010500         END-IF.                                                  01050027
+010600 RECEIVE-KEY-MAP.                                                 01060026
+010700       EXEC CICS RECEIVE                                          01070026
+010800          MAP('KEY')                                              01080026
+010900          MAPSET('P16AS05')                                       01090026
+011000          INTO (KEYI)                                             01100026
+011100      END-EXEC.                                                   01110026
+011200  READ-EMPLOYEE.                                                  01120026
+011300     MOVE LOW-VALUES TO DETAILO                                   01130029
+011400      MOVE E-IDI TO WS-EMP-ID, E-ID1O                             01140029
+011500      EXEC CICS READ                                              01150026
+011600          FILE('P16AFILE')                                        01160026
+011700          RIDFLD(WS-EMP-ID)                                       01170027
+011800          INTO(MASTER-RECORD)                                     01180026
+011900          RESP(WS-RESP-CODE)                                      01190026
+012000      END-EXEC.                                                   01200026
+012100      EVALUATE WS-RESP-CODE                                       01210026
+012200         WHEN DFHRESP(NORMAL)                                     01220026
+012300            MOVE NAME TO NAMEO                                    01230026
+012400            MOVE LOC TO LOCO                                      01240026
+012500            MOVE TECH TO TECHO                                    01250027
+012600            MOVE DOB(1:4) TO DOBYYO                               01260027
+012700            MOVE DOB(5:2) TO DOBMMO                               01270027
+012800            MOVE DOB(7:2) TO DOBDDO                               01280027
+012900            MOVE EARN TO WS-AMOUNT                                01290026
+013000            MOVE WS-AMT-RS TO EARNRSO                             01300026
+013100            MOVE WS-AMT-PS TO EARNPSO                             01310026
+013200            MOVE DEDN TO WS-AMOUNT                                01320026
+013300            MOVE WS-AMT-RS TO DEDNRSO                             01330026
+013400            MOVE WS-AMT-PS TO DEDNPSO                             01340026
+013500            COMPUTE WS-SAL = EARN - DEDN                          01350026
+013600            MOVE WS-SAL TO WS-SALO                                01360027
+013700            MOVE WS-SALO TO SALO                                  01370027
+013800            MOVE 'UPDATE / DELETE' TO MODEO                       01380026
+013900            MOVE -1                TO NAMEL                       01390026
+014000            SET PROCESS-UPD-DEL TO TRUE                           01400026
+014100             MOVE DFHBMDAR TO LABEL1A                             01410026
+014200             MOVE DFHBMPRO TO LABEL2A                             01420026
+014300         WHEN DFHRESP(NOTFND)                                     01430026
+014400             MOVE -1         TO NAMEL                             01440026
+014500            MOVE SPACES TO NAMEO,  TECHO, LOCO, TECHO,            01450027
+014600                           DOBYYO, DOBMMO, DOBDDO, SALO,          01460027
+014700                           EARNRSO, EARNPSO, DEDNRSO, DEDNPSO     01470027
+014800            MOVE ZERO TO WS-SAL                                   01480027
+014900            MOVE WS-SALO TO SALO                                  01490027
+015000            MOVE 'ADD EMPLOYEE' TO MODEO                          01500027
+015100            SET PROCESS-ADD TO TRUE                               01510027
+015200            MOVE DFHBMPRO TO LABEL1A                              01520027
+015300            MOVE DFHBMDAR TO LABEL2A                              01530030
+015400         WHEN OTHER                                               01540027
+015500            MOVE 'ERROR PROCESSING FILE' TO MESSAGEO              01550027
+015600         END-EVALUATE.                                            01560027
+015700  SEND-DETAIL-MAP.                                                01570026
+015800         PERFORM DATE-TIME-PARA.                                  01580027
+015900         EXEC CICS SEND                                           01590026
+016000              MAP('DETAIL')                                       01600026
+016100              MAPSET('P16AS05')                                   01610026
+016200              FROM(DETAILO)                                       01620026
+016300              ERASE                                               01630026
+016400         END-EXEC.                                                01640026
+016500  PROCESS-DETMAP-PARA.                                            01650027
+016600      EVALUATE EIBAID                                             01660027
+016700      WHEN DFHPF2                                                 01670027
+016800         IF PROCESS-ADD                                           01680027
+016900            PERFORM ADD-PARA                                      01690027
+017000         ELSE                                                     01700027
+017100            MOVE 'PF2 NOT ENABLED' TO MESSAGE1O                   01710027
+017200          END-IF                                                  01720027
+017300       WHEN DFHPF3                                                01730027
+017400            SET PROCESS-KEYMAP TO TRUE                            01740027
+017500        WHEN DFHPF4                                               01750027
+017600                IF PROCESS-UPD-DEL                                01760027
+017700                   PERFORM UPDATE-PARA                            01770027
+017800                ELSE                                              01780027
+017900                   MOVE 'PF4 NOT ENABLED' TO MESSAGE1O            01790027
+018000                END-IF                                            01800027
+018100         WHEN DFHPF5                                              01810027
+018200                IF PROCESS-UPD-DEL                                01820027
+018300                   PERFORM DELETE-PARA                            01830027
+018400                ELSE                                              01840027
+018500                   MOVE 'PF5 NOT ENABLED' TO MESSAGE1O            01850027
+018600                END-IF                                            01860027
+018700         WHEN OTHER                                               01870027
+018800                   MOVE 'INVALID KEY PRESSED' TO MESSAGE1O        01880027
+018900         END-EVALUATE.                                            01890027
+019000  RECEIVE-DETAIL-MAP.                                             01900027
+019100       EXEC CICS RECEIVE                                          01910027
+019200          MAP('DETAIL')                                           01920027
+019300          MAPSET('P16AS05')                                       01930027
+019400          INTO (DETAILI)                                          01940027
+019500      END-EXEC.                                                   01950027
+019600   DELETE-PARA.                                                   01960027
+019700        EXEC CICS                                                 01970027
+019800         DELETE FILE('P16AFILE') RIDFLD(WS-EMP-ID)                01980027
+019900         RESP(WS-RESP-CODE)                                       01990027
+020000         END-EXEC                                                 02000027
+020100         EVALUATE WS-RESP-CODE                                    02010027
+020200             WHEN DFHRESP(NORMAL)                                 02020027
+020300              MOVE 'DELETE SUCCESSFUL' TO MESSAGEO                02030027
+020400             WHEN OTHER                                           02040027
+020500             MOVE 'DELETE NOT SUCCESSFUL' TO MESSAGEO             02050027
+020600         END-EVALUATE                                             02060027
+020700         SET PROCESS-KEYMAP TO TRUE                               02070027
+020800             MOVE WS-EMP-ID TO E-IDO.                             02080027
+020900   ADD-PARA.                                                      02090027
+021000       PERFORM RECEIVE-DETAIL-MAP                                 02100029
+021100       PERFORM VALIDATE-PARA                                      02110033
+021200      IF VALID-DATA                                               02120027
+021300         PERFORM MOVE-PARA                                        02130027
+021400         PERFORM WRITE-PARA                                       02140029
+021500      END-IF.                                                     02150027
+021600   WRITE-PARA.                                                    02160027
+021700      EXEC CICS WRITE                                             02170027
+021800          FILE('P16AFILE')                                        02180027
+021900          RIDFLD(WS-EMP-ID)                                       02190027
+022000          FROM(MASTER-RECORD)                                     02200027
+022100          RESP(WS-RESP-CODE)                                      02210027
+022200      END-EXEC                                                    02220027
+022300      EVALUATE WS-RESP-CODE                                       02230027
+022400           WHEN DFHRESP(NORMAL)                                   02240027
+022500              MOVE 'ADD SUCCESSFUL' TO MESSAGEO                   02250027
+022600           WHEN OTHER                                             02260027
+022700             MOVE 'ADD NOT SUCCESSFUL' TO MESSAGEO                02270027
+022800           END-EVALUATE                                           02280027
+022900           SET PROCESS-KEYMAP TO TRUE                             02290027
+023000           MOVE WS-EMP-ID TO E-IDO.                               02300027
+023100   UPDATE-PARA.                                                   02310027
+023200       PERFORM RECEIVE-DETAIL-MAP                                 02320027
+023300       PERFORM VALIDATE-PARA                                      02330030
+023400       IF VALID-DATA                                              02340027
+023500          PERFORM REWRITE-PARA                                    02350027
+023600       END-IF.                                                    02360027
+023700   REWRITE-PARA.                                                  02370027
+023800       EXEC CICS READ                                             02380027
+023900       FILE('P16AFILE')                                           02390027
+024000       RIDFLD(WS-EMP-ID)                                          02400027
+024100       INTO(MASTER-RECORD)                                        02410027
+024200       RESP(WS-RESP-CODE)                                         02420027
+024300       UPDATE                                                     02430027
+024400       END-EXEC                                                   02440027
+024500           EVALUATE WS-RESP-CODE                                  02450027
+024600           WHEN DFHRESP(NORMAL)                                   02460027
+024700              PERFORM MOVE-PARA                                   02470027
+024800              EXEC CICS REWRITE                                   02480027
+024900              FILE('P16AFILE')                                    02490027
+025000              FROM (MASTER-RECORD)                                02500027
+025100              RESP(WS-RESP-CODE)                                  02510027
+025200              END-EXEC                                            02520027
+025300           EVALUATE WS-RESP-CODE                                  02530027
+025400           WHEN DFHRESP(NORMAL)                                   02540027
+025500              MOVE 'UPDATE SUCCESSFUL' TO MESSAGEO                02550027
+025600           WHEN OTHER                                             02560027
+025700             MOVE 'UPDATE NOT SUCCESSFUL' TO MESSAGEO             02570027
+025800           END-EVALUATE                                           02580027
+025900           WHEN OTHER                                             02590027
+026000             MOVE 'ERROR PROCESSING FILE' TO MESSAGEO             02600027
+026100           END-EVALUATE                                           02610027
+026200           SET PROCESS-KEYMAP TO TRUE                             02620027
+026300           MOVE WS-EMP-ID TO E-IDO.                               02630027
+026400    VALIDATE-PARA.                                                02640027
+026500        MOVE 'Y' TO WS-VALID-FLAG.                                02650027
+026600    MOVE-PARA.                                                    02660027
+026700        MOVE WS-EMP-ID             TO E-ID                        02670027
+026800        MOVE NAMEI                 TO NAME                        02680027
+026900        MOVE LOCI                  TO LOC                         02690027
+027000        MOVE TECHI                 TO TECH                        02700027
+027100        MOVE DOBDDI                TO DOB(7:2)                    02710027
+027200        MOVE DOBMMI                TO DOB(5:2)                    02720027
+027300        MOVE DOBYYI                TO DOB(1:4)                    02730027
+027400        MOVE EARNRSI               TO WS-AMT-RS                   02740027
+027500        MOVE EARNPSI               TO WS-AMT-PS                   02750027
+027600        MOVE WS-AMOUNT             TO EARN                        02760027
+027700        MOVE DEDNRSI               TO WS-AMT-RS                   02770027
+027800        MOVE DEDNPSI               TO WS-AMT-PS                   02780027
+027900        MOVE WS-AMOUNT             TO DEDN.                       02790027
+028000 DATE-TIME-PARA.                                                  02800016
+028100         EXEC CICS ASKTIME                                        02810001
+028200              ABSTIME(WS-DATE-TIME)                               02820001
+028300         END-EXEC                                                 02830028
+028400         EXEC CICS FORMATTIME                                     02840001
+028500            ABSTIME(WS-DATE-TIME)                                 02850028
+028600              DDMMYYYY(DATEO)                                     02860001
+028700              DATESEP                                             02870001
+028800              TIME(TIMEO)                                         02880001
+028900              TIMESEP                                             02890027
+029000         END-EXEC                                                 02900027
+029100         MOVE DATEO TO DATE1O                                     02910027
+029200         MOVE TIMEO TO TIME1O.                                    02920027
+
+

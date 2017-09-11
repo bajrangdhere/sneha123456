@@ -1,0 +1,50 @@
+000100  IDENTIFICATION DIVISION.                                        00010000
+000200  PROGRAM-ID. P16AP09.                                            00020000
+000300  DATA DIVISION.                                                  00030000
+000400  WORKING-STORAGE SECTION.                                        00040000
+000500   01 WS-RESP-CODE      PIC S9(08) COMP VALUE ZERO.               00050000
+000600* FOR DEBUGING PURPOSE PARA-TABLE                                 00060009
+000700   01  PARA-TABLE                        VALUE SPACES.            00070000
+000800       03  PARA-NAME     PIC X(16) OCCURS 12 TIMES.               00080000
+000900   01  PARA-SUB          PIC 9(02) VALUE ZERO.                    00090000
+001000   01  WS-CA.                                                     00100000
+001100     03  WS-PROCESS-FLAG   PIC X(01) VALUE SPACES.                00110000
+001200      88  PROCESS-KEYMAP      VALUE '1'.                          00120000
+001300      88  PROCESS-ADD         VALUE '2'.                          00130000
+001400      88  PROCESS-UPD-DEL     VALUE '3'.                          00140000
+001500      88  PROCESS-DETMAP      VALUE '2', '3'.                     00150000
+001600     03  WS-EMP-ID PIC X(04) VALUE SPACES.                        00160000
+001700   01 MASTER-RECORD.                                              00170000
+001800    03 E-ID      PIC X(04).                                       00180000
+001900    03 NAME    PIC X(08).                                         00190000
+002000    03 ADDR   PIC X(03).                                          00200000
+002100    03 DEPT    PIC X(08).                                         00210000
+002200    03 DOB     PIC X(08).                                         00220000
+002300    03 DOJ     PIC X(08).                                         00230000
+002400   01 WS-DATE-TIME    PIC S9(15) COMP-3 VALUE ZERO.               00240000
+002500   01 WS-MESSAGE      PIC X(30) VALUE                             00250000
+002600     'END OF THE PROGRAM,BYE,BYE'.                                00260000
+002700   01  WS-DOB.                                                    00270000
+002800       03  WS-DOB-YY            PIC 9(04) VALUE ZERO.             00280000
+002900       03  WS-DOB-MM            PIC 9(02) VALUE ZERO.             00290000
+003000       03  WS-DOB-DD            PIC 9(02) VALUE ZERO.             00300000
+003100   01  WS-DOJ.                                                    00310001
+003200       03  WS-DOJ-YY            PIC 9(04) VALUE ZERO.             00320001
+003300       03  WS-DOJ-MM            PIC 9(02) VALUE ZERO.             00330001
+003400       03  WS-DOJ-DD            PIC 9(02) VALUE ZERO.             00340001
+003500   01  WS-VALID-FLAG            PIC X(01) VALUE 'N'.              00350000
+003600       88  VALID-DATA                     VALUE 'Y'.              00360000
+003700   01 WS-AGE                    PIC 9(02) VALUE ZERO.             00370006
+003800        COPY P16AS09.                                             00380000
+003900        COPY DFHAID.                                              00390000
+004000        COPY DFHBMSCA.                                            00400000
+004100 LINKAGE SECTION.                                                 00410000
+004200  01  DFHCOMMAREA       PIC X(05).                                00420000
+004300 PROCEDURE DIVISION.                                              00430000
+004400 MAIN-PARA.                                                       00440000
+004500      ADD 1 TO PARA-SUB                                           00450000
+004600      IF PARA-SUB < 13                                            00460000
+004700          MOVE 'MAIN-PARA   ' TO PARA-NAME(PARA-SUB)              00470000
+004800      END-IF                                                      00480000
+004900      IF EIBCALEN = ZERO                                          00490000
+005000        PERFORM FI

@@ -1,0 +1,135 @@
+IDENTIFICATION DIVISION.                                      
+ PROGRAM-ID. P15AP04.                                          
+ DATA DIVISION.                                                
+ WORKING-STORAGE SECTION.                                      
+ 01 WS-CA   PIC X(01).                                         
+ 01 WS-RESP-CODE      PIC S9(08) COMP VALUE ZERO.              
+ 01 WS-EMPID PIC 9(01) VALUE ZERO.                             
+ 01 WS-EMPID-X REDEFINES WS-EMPID PIC X(01).                   
+ 01 EMP-RECORD.                                                
+    02 EMP-ID  PIC X(05) VALUE SPACES.                         
+    02 EMP-NAME PIC X(15) VALUE SPACES.                        
+    02 EMP-LOC PIC X(03) VALUE SPACES.                         
+    02 EMP-DOB.                                                
+       03 EMPDOBYYYY PIC X(04) VALUE SPACES.                   
+       03 EMPDOBMM PIC 9(02) VALUE ZERO.                       
+       03 EMPDOBDD   PIC X(02) VALUE SPACES.                   
+    02 EMP-TECH      PIC X(04) VALUE SPACES.                   
+    02 EMP-EARN   PIC 9(07).                                         
+    02 EMP-DEDN   PIC 9(7).                                          
+    02 FILLER     PIC X(31).                                         
+ 01 WS-DOB.                                                          
+       03 EMPDOBDD  PIC X(02) VALUE SPACES.                          
+       03 EMPDOBMMM PIC X(03) VALUE SPACES.                          
+       03 EMPDOBYYYY   PIC X(04) VALUE SPACES.                       
+ 01 WS-SAL           PIC ZZ,ZZ,ZZ9 VALUE ZERO.                       
+ 01 WS-DATE-TIME    PIC S9(15) COMP-3 VALUE ZERO.                    
+ 01 WS-MONTH-TABLE   PIC X(36) VALUE                                 
+       'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC'.                       
+ 01 FILLER REDEFINES WS-MONTH-TABLE.                                 
+    03 WS-MONTH   PIC X(03) OCCURS 12 TIMES.                         
+ 01 SUB PIC X(02).                                                   
+ 01 WS-MESSAGE PIC X(26) VALUE 'END OF PROGRAM BYE BYE!!'.           
+       COPY  P15AS04.                                                
+       COPY DFHAID.                                                  
+ LINKAGE SECTION.                                                    
+ 01 DFHCOMMAREA  PIC X(01).                                 
+ PROCEDURE DIVISION.                                        
+ MAIN-PARA.                                                 
+     IF EIBCALEN = ZERO                                     
+        PERFORM FIRST-PARA                                  
+     ELSE                                                   
+        PERFORM NEXT-PARA.                                  
+ END-PARA.                                                  
+     EXEC CICS RETURN                                       
+         TRANSID ('P15D')                                   
+         COMMAREA (WS-CA)                                   
+     END-EXEC.                                              
+ FIRST-PARA.                                                
+     MOVE LOW-VALUES TO ENQUIRYO                            
+     PERFORM SEND-MAP.                                      
+ SEND-MAP.                                                  
+     PERFORM DATE-TIME-PARA                                 
+     EXEC CICS SEND                                         
+        MAP('ENQUIRY')                                
+        MAPSET('P15AS04')                             
+        FROM (ENQUIRYO)                               
+        ERASE                                         
+    END-EXEC.                                         
+ NEXT-PARA.                                           
+     EVALUATE EIBAID                                  
+     WHEN DFHPF3                                      
+       EXEC CICS XCTL                                 
+         PROGRAM('P15AP03')                           
+       END-EXEC                                       
+     WHEN DFHENTER                                    
+     PERFORM PROCESS-PARA                             
+     WHEN OTHER                                       
+     MOVE 'INVALID KEY' TO MESSAGEO                   
+     END-EVALUATE                                     
+     PERFORM SEND-MAP.                                
+ PROCESS-PARA.                                        
+     PERFORM RECEIVE-MAP.                               
+     IF EMPIDL = ZERO                                   
+     MOVE 'PLEASE ENTER AN EMPLOYEE ID' TO MESSAGEO     
+     IF                                                 
+      EMPIDI = SPACES                                   
+     MOVE 'PLEASE ENTER AN EMPLOYEE ID' TO MESSAGEO     
+     END-IF                                             
+     ELSE                                               
+     PERFORM READ-EMPLOYEE                              
+     END-IF.                                            
+ MOVE-PARA.                                             
+     MOVE EMP-ID TO EMPIDO                              
+     MOVE EMP-NAME TO EMPNAMEO                          
+     MOVE EMP-LOC TO EMPLOCO                            
+     PERFORM DOB-PARA                                   
+     MOVE WS-DOB TO EMPDOBO                             
+     MOVE EMP-TECH TO EMPTECHO                          
+     MOVE EMP-EARN TO EMPEARNO                          
+     MOVE EMP-DEDN TO EMPDEDNO                              
+     COMPUTE WS-SAL = EMP-EARN  - EMP-DEDN                  
+     MOVE WS-SAL TO EMPSALO                                 
+     MOVE 'EMPLOYEE DETAILS FOUND' TO MESSAGEO.             
+ DOB-PARA.                                                  
+     MOVE CORR EMP-DOB TO WS-DOB                            
+     MOVE WS-MONTH(EMPDOBMM) TO EMPDOBMMM.                  
+ DATE-TIME-PARA.                                            
+        EXEC CICS ASKTIME                                   
+            ABSTIME(WS-DATE-TIME)                           
+        END-EXEC.                                           
+        EXEC CICS FORMATTIME                                
+            ABSTIME(WS-DATE-TIME)                           
+            DDMMYYYY(SYSDATEO)                              
+            DATESEP                                         
+            TIME(SYSTIMEO)                                  
+            TIMESEP                                         
+        END-EXEC.                                           
+ RECEIVE-MAP.                                             
+      EXEC CICS RECEIVE                                   
+         MAP('ENQUIRY')                                   
+         MAPSET('P15AS04')                                
+         INTO(ENQUIRYI)                                   
+      END-EXEC.                                           
+ READ-EMPLOYEE.                                           
+       EXEC CICS READ                                     
+          FILE('P15AFILE')                                
+          RIDFLD(EMPIDI)                                  
+          INTO(EMP-RECORD)                                
+          RESP(WS-RESP-CODE)                              
+       END-EXEC                                           
+       EVALUATE WS-RESP-CODE                              
+          WHEN DFHRESP(NORMAL)                            
+            PERFORM MOVE-PARA                             
+          WHEN DFHRESP(NOTFND)                            
+            MOVE SPACES TO EMPNAMEO, EMPDOBO,             
+                    EMPTECHO, EMPLOCO, EMPEARNO,       
+                    EMPDEDNO, EMPSALO                  
+            MOVE 'EMPLOYEE NOT FOUND' TO MESSAGEO      
+        WHEN OTHER                                     
+            MOVE 'ERROR ACCESSING FILE' TO MESSAGEO    
+            MOVE SPACES TO EMPNAMEO, EMPDOBO,          
+                       EMPTECHO, EMPLOCO, EMPEARNO,    
+                       EMPDEDNO, EMPSALO               
+        END-EVALUATE.                                  
+        PERFORM SEND-MAP.                      
